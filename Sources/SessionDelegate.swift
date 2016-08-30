@@ -9,37 +9,37 @@
 import Foundation
 
 /// Internal class for SSL pinning
-final class SessionDelegate: NSObject, NSURLSessionDelegate {
-	func URLSession(session: NSURLSession,  didReceiveChallenge challenge: NSURLAuthenticationChallenge, completionHandler: (NSURLSessionAuthChallengeDisposition, NSURLCredential?) -> Void) {
+final class SessionDelegate: NSObject, URLSessionDelegate {
+	func urlSession(_ session: URLSession, didReceive challenge: URLAuthenticationChallenge, completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {
 		guard let serverTrust = challenge.protectionSpace.serverTrust,
-			certificate = SecTrustGetCertificateAtIndex(serverTrust, 0),
-			path = bundle.pathForResource("STAR_usecanvas_com", ofType: "der"),
-			localCertificate = NSData(contentsOfFile: path)
+			let certificate = SecTrustGetCertificateAtIndex(serverTrust, 0),
+			let path = bundle.path(forResource: "STAR_usecanvas_com", ofType: "der"),
+			let localCertificate = try? Data(contentsOf: URL(fileURLWithPath: path))
 		else {
-			completionHandler(.CancelAuthenticationChallenge, nil)
+			completionHandler(.cancelAuthenticationChallenge, nil)
 			return
 		}
 
 		// Set SSL policies for domain name check
 		let policies = NSMutableArray()
-		policies.addObject(SecPolicyCreateSSL(true, (challenge.protectionSpace.host)))
+		policies.add(SecPolicyCreateSSL(true, (challenge.protectionSpace.host as CFString?)))
 		SecTrustSetPolicies(serverTrust, policies);
 
 		// Evaluate server certificate
-		var result: SecTrustResultType = 0
+		var result: SecTrustResultType = .unspecified
 		SecTrustEvaluate(serverTrust, &result)
-		let isServerTrusted = (Int(result) == kSecTrustResultUnspecified || Int(result) == kSecTrustResultProceed)
+		let isServerTrusted = (result == .unspecified || result == .proceed)
 
 		// Get local and remote cert data
-		let remoteCertificateData:NSData = SecCertificateCopyData(certificate)
+		let remoteCertificateData:Data = SecCertificateCopyData(certificate) as Data
 
-		if (isServerTrusted && remoteCertificateData.isEqualToData(localCertificate)) {
-			let credential = NSURLCredential(forTrust: serverTrust)
-			completionHandler(.UseCredential, credential)
+		if (isServerTrusted && (remoteCertificateData == localCertificate)) {
+			let credential = URLCredential(trust: serverTrust)
+			completionHandler(.useCredential, credential)
 			return
 		}
 
-		completionHandler(.CancelAuthenticationChallenge, nil)
+		completionHandler(.cancelAuthenticationChallenge, nil)
 	}
 }
 

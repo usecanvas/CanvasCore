@@ -15,27 +15,27 @@ import Starscream
 #endif
 
 public protocol PresenceObserver: NSObjectProtocol {
-	func presenceController(controller: PresenceController, canvasID: String, userJoined user: User, cursor: Cursor?)
-	func presenceController(controller: PresenceController, canvasID: String, user: User, updatedCursor cursor: Cursor?)
-	func presenceController(controller: PresenceController, canvasID: String, userLeft user: User)
+	func presenceController(_ controller: PresenceController, canvasID: String, userJoined user: User, cursor: Cursor?)
+	func presenceController(_ controller: PresenceController, canvasID: String, user: User, updatedCursor cursor: Cursor?)
+	func presenceController(_ controller: PresenceController, canvasID: String, userLeft user: User)
 }
 
 
 // TODO: Update meta
 // TODO: Handle update meta
 // TODO: Handle expired
-public class PresenceController: Accountable {
+open class PresenceController: Accountable {
 
 	// MARK: - Types
 
-	private struct Client {
+	fileprivate struct Client {
 		let id: String
 		let user: User
 		var cursor: Cursor?
 
 		init?(dictionary: JSONDictionary) {
 			guard let id = dictionary["id"] as? String,
-				user = (dictionary["user"] as? JSONDictionary).flatMap(User.init)
+				let user = (dictionary["user"] as? JSONDictionary).flatMap(User.init)
 			else { return nil }
 
 			self.id = id
@@ -46,13 +46,13 @@ public class PresenceController: Accountable {
 		}
 	}
 
-	private struct Connection {
+	fileprivate struct Connection {
 		let canvasID: String
 		let connectionID: String
 		var cursor: Cursor?
 		var clients = [Client]()
 
-		init(canvasID: String, connectionID: String = NSUUID().UUIDString.lowercaseString) {
+		init(canvasID: String, connectionID: String = UUID().uuidString.lowercased()) {
 			self.canvasID = canvasID
 			self.connectionID = connectionID
 		}
@@ -61,18 +61,18 @@ public class PresenceController: Accountable {
 
 	// MARK: - Properties
 
-	public var account: Account
-	public let serverURL: NSURL
+	open var account: Account
+	open let serverURL: NSURL
 
-	public var isConnected: Bool {
+	open var isConnected: Bool {
 		return socket?.isConnected ?? false
 	}
 
-	private var socket: WebSocket? = nil
-	private var connections = [String: Connection]()
-	private var messageQueue = [JSONDictionary]()
-	private var pingTimer: NSTimer?
-	private var observers = NSMutableSet()
+	fileprivate var socket: WebSocket? = nil
+	fileprivate var connections = [String: Connection]()
+	fileprivate var messageQueue = [JSONDictionary]()
+	fileprivate var pingTimer: Timer?
+	fileprivate var observers = NSMutableSet()
 
 
 	// MARK: - Initializers
@@ -84,9 +84,9 @@ public class PresenceController: Accountable {
 		connect()
 
 		#if !os(OSX)
-			let notificationCenter = NSNotificationCenter.defaultCenter()
-			notificationCenter.addObserver(self, selector: #selector(applicationDidEnterBackground), name: UIApplicationDidEnterBackgroundNotification, object: nil)
-			notificationCenter.addObserver(self, selector: #selector(applicationWillEnterForeground), name: UIApplicationWillEnterForegroundNotification, object: nil)
+			let notificationCenter = NotificationCenter.default
+			notificationCenter.addObserver(self, selector: #selector(applicationDidEnterBackground), name: .UIApplicationDidEnterBackground, object: nil)
+			notificationCenter.addObserver(self, selector: #selector(applicationWillEnterForeground), name: .UIApplicationWillEnterForeground, object: nil)
 		#endif
 	}
 
@@ -98,14 +98,14 @@ public class PresenceController: Accountable {
 
 	// MARK: - Connecting
 
-	public func connect() {
+	open func connect() {
 		if socket != nil {
 			return
 		}
 
-		guard let url = NSURL(string: "socket/websocket", relativeToURL: serverURL),
-			path = bundle.pathForResource("STAR_usecanvas_com", ofType: "der"),
-			data = NSData(contentsOfFile: path)
+		guard let url = serverURL.appendingPathComponent("socket/websocket"),
+			let certURL = bundle.url(forResource: "STAR_usecanvas_com", withExtension: "der"),
+			let data = try? Data(contentsOf: certURL)
 		else {
 			print("[CanvasCore] Presence failed to setup a WebSocket connection.")
 			return
@@ -120,7 +120,7 @@ public class PresenceController: Accountable {
 		socket = ws
 	}
 
-	public func disconnect() {
+	open func disconnect() {
 		for (_, connection) in connections {
 			leave(canvasID: connection.canvasID)
 		}
@@ -132,7 +132,7 @@ public class PresenceController: Accountable {
 
 	// MARK: - Working with Canvases
 
-	public func join(canvasID canvasID: String) {
+	open func join(canvasID: String) {
 		let connection = Connection(canvasID: canvasID)
 
 		connections[canvasID] = connection
@@ -140,7 +140,7 @@ public class PresenceController: Accountable {
 		sendJoinMessage(connection)
 	}
 
-	public func leave(canvasID canvasID: String) {
+	open func leave(canvasID: String) {
 		guard let connection = connections[canvasID] else { return }
 
 		sendMessage([
@@ -150,15 +150,15 @@ public class PresenceController: Accountable {
 			"ref": "4"
 		])
 
-		connections.removeValueForKey(canvasID)
+		connections.removeValue(forKey: canvasID)
 	}
 
-	public func update(selection presentationSelectedRange: NSRange?, withDocument document: Document, canvasID: String) {
+	open func update(selection presentationSelectedRange: NSRange?, withDocument document: Document, canvasID: String) {
 		guard let connection = connections[canvasID] else { return }
 
-		var payload = [String: AnyObject]()
+		var payload = [String: Any]()
 
-		if let selection = presentationSelectedRange, cursor = Cursor(presentationSelectedRange: selection, document: document) {
+		if let selection = presentationSelectedRange, let cursor = Cursor(presentationSelectedRange: selection, document: document) {
 			payload["cursor"] = cursor.dictionary
 		}
 
@@ -173,25 +173,25 @@ public class PresenceController: Accountable {
 
 	// MARK: - Notifications
 
-	public func add(observer observer: PresenceObserver) {
-		observers.addObject(observer)
+	open func add(observer: PresenceObserver) {
+		observers.add(observer)
 	}
 
-	public func remove(observer observer: PresenceObserver) {
-		observers.removeObject(observer)
+	open func remove(observer: PresenceObserver) {
+		observers.remove(observer)
 	}
 
 
 	// MARK: - Querying
 
-	public func users(canvasID canvasID: String) -> [User] {
+	open func users(canvasID: String) -> [User] {
 		return clients(canvasID: canvasID).map { $0.user }
 	}
 
 
 	// MARK: - Private
 
-	@objc private func applicationWillEnterForeground() {
+	@objc fileprivate func applicationWillEnterForeground() {
 		if connections.isEmpty {
 			return
 		}
@@ -201,7 +201,7 @@ public class PresenceController: Accountable {
 		setupPingTimer()
 	}
 
-	@objc private func applicationDidEnterBackground() {
+	@objc fileprivate func applicationDidEnterBackground() {
 		pingTimer?.invalidate()
 		pingTimer = nil
 
@@ -209,7 +209,7 @@ public class PresenceController: Accountable {
 		socket = nil
 	}
 
-	private func clients(canvasID canvasID: String) -> [Client] {
+	fileprivate func clients(canvasID: String) -> [Client] {
 		guard let connection = connections[canvasID] else { return [] }
 
 		var seen = Set<User>()
@@ -227,7 +227,7 @@ public class PresenceController: Accountable {
 		return clients
 	}
 
-	private func sendJoinMessage(connection: Connection) {
+	fileprivate func sendJoinMessage(_ connection: Connection) {
 		let payload = clientDescriptor(connectionID: connection.connectionID)
 
 		sendMessage([
@@ -238,21 +238,21 @@ public class PresenceController: Accountable {
 		])
 	}
 
-	private func setupPingTimer() {
+	fileprivate func setupPingTimer() {
 		if pingTimer != nil {
 			return
 		}
 
-		let timer = NSTimer(timeInterval: 20, target: self, selector: #selector(ping), userInfo: nil, repeats: true)
+		let timer = Timer(timeInterval: 20, target: self, selector: #selector(ping), userInfo: nil, repeats: true)
 		timer.tolerance = 10
-		NSRunLoop.currentRunLoop().addTimer(timer, forMode: NSDefaultRunLoopMode)
+		RunLoop.current.add(timer, forMode: RunLoopMode.defaultRunLoopMode)
 		pingTimer = timer
 	}
 
-	private func sendMessage(message: JSONDictionary) {
-		if let socket = socket where socket.isConnected {
-			if let data = try? NSJSONSerialization.dataWithJSONObject(message, options: []) {
-				socket.writeData(data)
+	fileprivate func sendMessage(_ message: JSONDictionary) {
+		if let socket = socket , socket.isConnected {
+			if let data = try? JSONSerialization.data(withJSONObject: message, options: []) {
+				socket.write(data: data)
 			}
 		} else {
 			messageQueue.append(message)
@@ -260,7 +260,7 @@ public class PresenceController: Accountable {
 		}
 	}
 
-	private func clientDescriptor(connectionID connectionID: String) -> JSONDictionary {
+	fileprivate func clientDescriptor(connectionID: String) -> JSONDictionary {
 		return [
 			"id": connectionID,
 			"user": account.user.dictionary,
@@ -270,7 +270,7 @@ public class PresenceController: Accountable {
 		]
 	}
 
-	@objc private func ping() {
+	@objc fileprivate func ping() {
 		for (_, connection) in connections {
 			sendMessage([
 				"event": "ping",
@@ -281,21 +281,21 @@ public class PresenceController: Accountable {
 		}
 	}
 
-	private func presenceController(controller: PresenceController, canvasID: String, userJoined user: User, cursor: Cursor?) {
+	fileprivate func presenceController(_ controller: PresenceController, canvasID: String, userJoined user: User, cursor: Cursor?) {
 		for observer in observers {
 			guard let observer = observer as? PresenceObserver else { continue }
 			observer.presenceController(self, canvasID: canvasID, userJoined: user, cursor: cursor)
 		}
 	}
 
-	private func presenceController(controller: PresenceController, canvasID: String, user: User, updatedCursor cursor: Cursor?) {
+	fileprivate func presenceController(_ controller: PresenceController, canvasID: String, user: User, updatedCursor cursor: Cursor?) {
 		for observer in observers {
 			guard let observer = observer as? PresenceObserver else { continue }
 			observer.presenceController(self, canvasID: canvasID, user: user, updatedCursor: cursor)
 		}
 	}
 
-	private func presenceController(controller: PresenceController, canvasID: String, userLeft user: User) {
+	fileprivate func presenceController(_ controller: PresenceController, canvasID: String, userLeft user: User) {
 		for observer in observers {
 			guard let observer = observer as? PresenceObserver else { continue }
 			observer.presenceController(self, canvasID: canvasID, userLeft: user )
@@ -305,10 +305,10 @@ public class PresenceController: Accountable {
 
 
 extension PresenceController: WebSocketDelegate {
-	public func websocketDidConnect(socket: WebSocket) {
+	public func websocketDidConnect(_ socket: WebSocket) {
 		for message in messageQueue {
-			if let data = try? NSJSONSerialization.dataWithJSONObject(message, options: []) {
-				socket.writeData(data)
+			if let data = try? JSONSerialization.data(withJSONObject: message, options: []) {
+				socket.write(data: data)
 			}
 		}
 
@@ -317,25 +317,25 @@ extension PresenceController: WebSocketDelegate {
 		setupPingTimer()
 	}
 
-	public func websocketDidDisconnect(socket: WebSocket, error: NSError?) {
+	public func websocketDidDisconnect(_ socket: WebSocket, error: NSError?) {
 		pingTimer?.invalidate()
 		pingTimer = nil
 	}
 
-	public func websocketDidReceiveMessage(socket: WebSocket, text: String) {
-		guard let data = text.dataUsingEncoding(NSUTF8StringEncoding),
-			raw = try? NSJSONSerialization.JSONObjectWithData(data, options: []),
-			json = raw as? JSONDictionary,
-			event = json["event"] as? String,
-			topic = json["topic"] as? String,
-			payload = json["payload"] as? JSONDictionary
+	public func websocketDidReceiveMessage(_ socket: WebSocket, text: String) {
+		guard let data = text.data(using: String.Encoding.utf8),
+			let raw = try? JSONSerialization.jsonObject(with: data, options: []),
+			let json = raw as? JSONDictionary,
+			let event = json["event"] as? String,
+			let topic = json["topic"] as? String,
+			let payload = json["payload"] as? JSONDictionary
 		else { return }
 
-		let canvasID = topic.stringByReplacingOccurrencesOfString("presence:canvases:", withString: "")
+		let canvasID = topic.replacingOccurrences(of: "presence:canvases:", with: "")
 		guard var connection = connections[canvasID] else { return }
 
 		// Join
-		if event == "phx_reply", let response = payload["response"] as? JSONDictionary, clients = response["clients"] as? [JSONDictionary] {
+		if event == "phx_reply", let response = payload["response"] as? JSONDictionary, let clients = response["clients"] as? [JSONDictionary] {
 			let clients = clients.flatMap(Client.init).filter { $0.user != account.user }
 
 			if !clients.isEmpty {
@@ -349,8 +349,8 @@ extension PresenceController: WebSocketDelegate {
 		}
 
 		// Remote join
-		else if event == "remote_join", let client = Client(dictionary: payload) where client.user != account.user {
-			var clients = connection.clients ?? []
+		else if event == "remote_join", let client = Client(dictionary: payload) , client.user != account.user {
+			var clients = connection.clients
 			let before = Set(clients.map { $0.user })
 
 			clients.append(client)
@@ -364,12 +364,12 @@ extension PresenceController: WebSocketDelegate {
 		}
 
 		// Remove leave
-		else if event == "remote_leave", let client = Client(dictionary: payload) where client.user != account.user {
-			var clients = connection.clients ?? []
+		else if event == "remote_leave", let client = Client(dictionary: payload) , client.user != account.user {
+			var clients = connection.clients
 			let before = Set(clients.map { $0.user })
 
-			if let index = clients.indexOf({ $0.id == client.id }) {
-				clients.removeAtIndex(index)
+			if let index = clients.index(where: { $0.id == client.id }) {
+				clients.remove(at: index)
 				connection.clients = clients
 				connections[canvasID] = connection
 			}
@@ -381,12 +381,12 @@ extension PresenceController: WebSocketDelegate {
 		}
 
 		// Remote update
-		else if event == "remote_update", let updatedClient = Client(dictionary: payload) where updatedClient.user != account.user {
-			var clients = connection.clients ?? []
-			if let index = clients.indexOf({ $0.id == updatedClient.id }) {
+		else if event == "remote_update", let updatedClient = Client(dictionary: payload) , updatedClient.user != account.user {
+			var clients = connection.clients
+			if let index = clients.index(where: { $0.id == updatedClient.id }) {
 				let previousClient = clients[index]
-				clients.removeAtIndex(index)
-				clients.insert(updatedClient, atIndex: index)
+				clients.remove(at: index)
+				clients.insert(updatedClient, at: index)
 				connection.clients = clients
 				connections[canvasID] = connection
 
@@ -397,5 +397,5 @@ extension PresenceController: WebSocketDelegate {
 		}
 	}
 
-	public func websocketDidReceiveData(socket: WebSocket, data: NSData) {}
+	public func websocketDidReceiveData(_ socket: WebSocket, data: Data) {}
 }

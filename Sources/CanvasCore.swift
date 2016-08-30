@@ -10,4 +10,4 @@ import Foundation
 
 @objc private class _CanvasCore: NSObject {}
 
-let bundle = NSBundle(forClass: _CanvasCore.self)
+let bundle = Bundle(for: _CanvasCore.self)

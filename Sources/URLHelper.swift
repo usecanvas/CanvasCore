@@ -15,9 +15,11 @@ public struct URLHelper {
 	///
 	/// - parameter url: A url to parse
 	/// - returns: a canvas ID or nil
-	public static func canvasID(url url: NSURL) -> String? {
-		guard let components = url.pathComponents
-		where url.pathExtension?.isEmpty ?? true && components.count == 4 else { return nil }
+	public static func canvasID(url: URL) -> String? {
+		var components = url.pathComponents
+
+		guard url.pathExtension.isEmpty && components.count == 4 else { return nil }
+
 		return components[3]
 	}
 }

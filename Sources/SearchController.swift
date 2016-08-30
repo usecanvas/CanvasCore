@@ -17,17 +17,17 @@ public final class SearchController: NSObject {
 	public let organizationID: String
 
 	/// Results are delivered to this callback
-	public var callback: ([Canvas] -> Void)?
+	public var callback: (([Canvas]) -> Void)?
 
-	private let semaphore = dispatch_semaphore_create(0)
+	fileprivate let semaphore = DispatchSemaphore(value: 0)
 
-	private var nextQuery: String? {
+	fileprivate var nextQuery: String? {
 		didSet {
 			query()
 		}
 	}
 
-	private let client: APIClient
+	fileprivate let client: APIClient
 
 
 	// MARK: - Initializers
@@ -38,7 +38,7 @@ public final class SearchController: NSObject {
 
 		super.init()
 
-		dispatch_semaphore_signal(semaphore)
+		semaphore.signal()
 	}
 
 
@@ -51,19 +51,19 @@ public final class SearchController: NSObject {
 
 	// MARK: - Private
 
-	private func query() {
+	fileprivate func query() {
 		guard nextQuery != nil else { return }
 
-		dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_LOW, 0)) { [weak self] in
+		DispatchQueue.global(qos: .userInitiated).async { [weak self] in
 			guard let semaphore = self?.semaphore else { return }
 
-			dispatch_semaphore_wait(semaphore, DISPATCH_TIME_FOREVER)
+			_ = semaphore.wait(timeout: DispatchTime.distantFuture)
 
 			guard let query = self?.nextQuery,
-				client = self?.client,
-				organizationID = self?.organizationID
+				let client = self?.client,
+				let organizationID = self?.organizationID
 			else {
-				dispatch_semaphore_signal(semaphore)
+				semaphore.signal()
 				return
 			}
 
@@ -72,14 +72,14 @@ public final class SearchController: NSObject {
 			let callback = self?.callback
 
 			client.searchCanvases(organizationID: organizationID, query: query) { result in
-				dispatch_async(dispatch_get_main_queue()) {
+				DispatchQueue.main.async {
 					switch result {
-					case .Success(let canvases): callback?(canvases)
+					case .success(let canvases): callback?(canvases)
 					default: break
 					}
 				}
 
-				dispatch_semaphore_signal(semaphore)
+				semaphore.signal()
 			}
 		}
 	}
@@ -90,7 +90,7 @@ public final class SearchController: NSObject {
 	import UIKit
 
 	extension SearchController: UISearchResultsUpdating {
-		public func updateSearchResultsForSearchController(searchController: UISearchController) {
+		public func updateSearchResults(for searchController: UISearchController) {
 			guard let text = searchController.searchBar.text else { return }
 			search(withQuery: text)
 		}

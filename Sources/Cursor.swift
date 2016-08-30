@@ -44,7 +44,7 @@ public struct Cursor: Equatable {
 		let max = NSMaxRange(selection)
 
 		let count = document.blocks.count
-		for (i, block) in document.blocks.enumerate() {
+		for (i, block) in document.blocks.enumerated() {
 			let index = UInt(i)
 			let isLast = i == count - 1
 			var blockRange = document.presentationRange(block: block)
@@ -73,7 +73,7 @@ public struct Cursor: Equatable {
 			}
 		}
 
-		guard let (startLine, start) = starts, (endLine, end) = ends else { return nil }
+		guard let (startLine, start) = starts, let (endLine, end) = ends else { return nil }
 
 		self.startLine = startLine
 		self.start = start
@@ -88,11 +88,11 @@ public struct Cursor: Equatable {
 		self.end = end
 	}
 
-	public init?(dictionary: [String: AnyObject]) {
+	public init?(dictionary: [String: Any]) {
 		guard let startLine = dictionary["startLine"] as? UInt,
-			start = dictionary["start"] as? UInt,
-			endLine = dictionary["endLine"] as? UInt,
-			end = dictionary["end"] as? UInt
+			let start = dictionary["start"] as? UInt,
+			let endLine = dictionary["endLine"] as? UInt,
+			let end = dictionary["end"] as? UInt
 		else { return nil }
 
 		self.startLine = startLine
@@ -108,7 +108,7 @@ public struct Cursor: Equatable {
 		var range = NSRange(location: 0, length: 0)
 
 		let count = document.blocks.count
-		for (i, block) in document.blocks.enumerate() {
+		for (i, block) in document.blocks.enumerated() {
 			let index = UInt(i)
 			let isLast = i == count - 1
 			var blockRange = document.presentationRange(block: block)

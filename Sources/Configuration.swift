@@ -13,27 +13,27 @@ public enum Environment: String {
 	case staging
 	case production
 
-	public var apiURL: NSURL {
+	public var apiURL: URL {
 		switch self {
-		case .development: return NSURL(string: "http://localhost:5001/")!
-		case .staging: return NSURL(string: "https://canvas-api-staging.herokuapp.com/")!
-		case .production: return NSURL(string: "https://api.usecanvas.com/")!
+		case .development: return URL(string: "http://localhost:5001/")!
+		case .staging: return URL(string: "https://canvas-api-staging.herokuapp.com/")!
+		case .production: return URL(string: "https://api.usecanvas.com/")!
 		}
 	}
 
-	public var realtimeURL: NSURL {
+	public var realtimeURL: URL {
 		switch self {
-		case .development: return NSURL(string: "ws://localhost:5002/")!
-		case .staging: return NSURL(string: "wss://canvas-realtime-staging.herokuapp.com/")!
-		case .production: return NSURL(string: "wss://realtime.usecanvas.com/")!
+		case .development: return URL(string: "ws://localhost:5002/")!
+		case .staging: return URL(string: "wss://canvas-realtime-staging.herokuapp.com/")!
+		case .production: return URL(string: "wss://realtime.usecanvas.com/")!
 		}
 	}
 
-	public var presenceURL: NSURL {
+	public var presenceURL: URL {
 		switch self {
-		case .development: return NSURL(string: "ws://localhost:5003/")!
-		case .staging: return NSURL(string: "wss://canvas-live-staging.herokuapp.com/")!
-		case .production: return NSURL(string: "wss://live.usecanvas.com/")!
+		case .development: return URL(string: "ws://localhost:5003/")!
+		case .staging: return URL(string: "wss://canvas-live-staging.herokuapp.com/")!
+		case .production: return URL(string: "wss://live.usecanvas.com/")!
 		}
 	}
 }
@@ -84,7 +84,7 @@ public struct Configuration {
 	#elseif BETA
 		public let updatesURL = NSURL(string: "https://beta.itunes.apple.com/v1/app/1060281423")!
 	#else
-		public let updatesURL = NSURL(string: "https://itunes.apple.com/app/canvas-for-ios/id1060281423?ls=1&mt=8")!
+		public let updatesURL = URL(string: "https://itunes.apple.com/app/canvas-for-ios/id1060281423?ls=1&mt=8")!
 	#endif
 
 

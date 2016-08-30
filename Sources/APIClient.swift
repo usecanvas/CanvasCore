@@ -10,14 +10,14 @@ import CanvasKit
 
 public final class APIClient: CanvasKit.APIClient {
 	public convenience init(account: Account, config: Configuration) {
-		let session = NSURLSession(configuration: NSURLSessionConfiguration.defaultSessionConfiguration(), delegate: sessionDelegate, delegateQueue: nil)
+		let session = URLSession(configuration: URLSessionConfiguration.default, delegate: sessionDelegate, delegateQueue: nil)
 		self.init(accessToken: account.accessToken, baseURL: config.environment.apiURL, session: session)
 	}
 
-	public override func shouldComplete<T>(request request: NSURLRequest, response: NSHTTPURLResponse?, data: NSData?, error: NSError?, completion: (Result<T> -> Void)?) -> Bool {
+	public override func shouldComplete<T>(request: URLRequest, response: HTTPURLResponse?, data: Data?, error: Error?, completion: ((Result<T>) -> Void)?) -> Bool {
 		// TODO: Remove 400 once the API updates
 		if response?.statusCode == 400 || response?.statusCode == 401 {
-			dispatch_async(dispatch_get_main_queue()) {
+			DispatchQueue.main.async {
 				AccountController.sharedController.currentAccount = nil
 			}
 			return false

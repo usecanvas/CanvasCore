@@ -15,12 +15,12 @@ public struct Imgix {
 	
 	public let host: String
 	public let secret: String
-	public let defaultParameters: [NSURLQueryItem]?
+	public let defaultParameters: [URLQueryItem]?
 	
 	
 	// MARK: - Initializers
 	
-	public init(host: String, secret: String, defaultParameters: [NSURLQueryItem]? = nil) {
+	public init(host: String, secret: String, defaultParameters: [URLQueryItem]? = nil) {
 		self.host = host
 		self.secret = secret
 		self.defaultParameters = defaultParameters
@@ -29,31 +29,31 @@ public struct Imgix {
 	
 	// MARK: - Building URLs
 	
-	public func sign(path input: String) -> NSURL? {
+	public func sign(path input: String) -> URL? {
 		// Get components
 		let path = (input.hasPrefix("/") ? "" : "/") + input
-		guard let components = NSURLComponents(string: "https://\(host + path)") else { return nil }
+		guard var components = URLComponents(string: "https://\(host + path)") else { return nil }
 		
 		// Apply default query items
 		var queryItems = components.queryItems ?? []
-		if let defaultParameters = defaultParameters where !defaultParameters.isEmpty {
+		if let defaultParameters = defaultParameters , !defaultParameters.isEmpty {
 			queryItems += defaultParameters
 			components.queryItems = queryItems
 		}
 		
 		// Calculate signature
 		var base = secret + path
-		if let query = components.query where !query.isEmpty {
+		if let query = components.query , !query.isEmpty {
 			base += "?\(query)"
 		}
 		
-		guard let signature = base.MD5 else { return nil }
+		guard let signature = base.md5 else { return nil }
 		
 		// Apply signature
-		queryItems.append(NSURLQueryItem(name: "s", value: signature))
+		queryItems.append(URLQueryItem(name: "s", value: signature))
 		components.queryItems = queryItems
 		
 		// Return signed URL
-		return components.URL
+		return components.url
 	}
 }

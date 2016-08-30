@@ -28,9 +28,9 @@ public final class RemoteCursorsController {
 
 		let usernameLabel: UILabel = {
 			let label = UILabel()
-			label.font = .boldSystemFontOfSize(8)
+			label.font = .boldSystemFont(ofSize: 8)
 			label.textColor = Swatch.black
-			label.textAlignment = .Center
+			label.textAlignment = .center
 			return label
 		}()
 
@@ -74,15 +74,15 @@ public final class RemoteCursorsController {
 	public var contentInset = UIEdgeInsets(top: 0, left: 0, bottom: 0, right: 0)
 	public let backgroundView: UIView = {
 		let view = UIView()
-		view.userInteractionEnabled = false
-		view.backgroundColor = .whiteColor() // TODO: Get from theme
+		view.isUserInteractionEnabled = false
+		view.backgroundColor = .white // TODO: Get from theme
 		return view
 	}()
 
 	public let foregroundView: UIView = {
 		let view = UIView()
-		view.userInteractionEnabled = false
-		view.backgroundColor = .clearColor()
+		view.isUserInteractionEnabled = false
+		view.backgroundColor = .clear
 		return view
 	}()
 
@@ -107,12 +107,12 @@ public final class RemoteCursorsController {
 
 	// MARK: - Updating
 
-	public func change(user user: User, cursor: Cursor) {
+	public func change(user: User, cursor: Cursor) {
 		let key = user.id
 
 		// Track this user ID
 		let keyIndex: Int
-		if let index = userIDs.indexOf(key) {
+		if let index = userIDs.index(of: key) {
 			keyIndex = index
 		} else {
 			keyIndex = userIDs.count
@@ -149,8 +149,8 @@ public final class RemoteCursorsController {
 		remoteCursors[key] = remoteCursor
 	}
 
-	public func leave(user user: User) {
-		guard let remoteCursor = remoteCursors.removeValueForKey(user.id) else { return }
+	public func leave(user: User) {
+		guard let remoteCursor = remoteCursors.removeValue(forKey: user.id) else { return }
 		removeLayers(remoteCursor: remoteCursor)
 		remoteCursor.usernameLabel.removeFromSuperview()
 	}
@@ -168,20 +168,20 @@ public final class RemoteCursorsController {
 
 	// MARK: - Private
 
-	private func removeLayers(remoteCursor remoteCursor: RemoteCursor) {
+	private func removeLayers(remoteCursor: RemoteCursor) {
 		remoteCursor.lineLayers.forEach { layer in
-			layer.hidden = true
+			layer.isHidden = true
 			layer.removeFromSuperlayer()
 		}
 	}
 
-	private func layoutLayers(remoteCursor remoteCursor: RemoteCursor) -> RemoteCursor {
+	private func layoutLayers(remoteCursor: RemoteCursor) -> RemoteCursor {
 		removeLayers(remoteCursor: remoteCursor)
 
 		var remoteCursor = remoteCursor
 		remoteCursor.lineLayers = []
 
-		guard let rects = delegate?.remoteCursorsController(self, rectsForCursor: remoteCursor.cursor) else {
+		guard let rects = delegate?.remoteCursorsController(controller: self, rectsForCursor: remoteCursor.cursor) else {
 			remoteCursor.usernameLabel.removeFromSuperview()
 			return remoteCursor
 		}
@@ -193,7 +193,7 @@ public final class RemoteCursorsController {
 		// Setup line layers
 		remoteCursor.lineLayers = rects.map { rect in
 			let layer = CALayer()
-			layer.backgroundColor = remoteCursor.color.CGColor
+			layer.backgroundColor = remoteCursor.color.cgColor
 
 			var rect = rect
 			rect.origin.x += contentInset.left
@@ -228,21 +228,21 @@ public final class RemoteCursorsController {
 		return remoteCursor
 	}
 
-	private func animateLabel(remoteCursor remoteCursor: RemoteCursor) {
+	private func animateLabel(remoteCursor: RemoteCursor) {
 		let animation = CABasicAnimation(keyPath: "opacity")
 		animation.fillMode = kCAFillModeForwards
-		animation.removedOnCompletion = false
+		animation.isRemovedOnCompletion = false
 		animation.duration = 0.2
 		animation.beginTime = CACurrentMediaTime() + 1
 		animation.fromValue = 1
 		animation.toValue = 0
-		remoteCursor.usernameLabel.layer.removeAnimationForKey("opacity")
-		remoteCursor.usernameLabel.layer.addAnimation(animation, forKey: "opacity")
+		remoteCursor.usernameLabel.layer.removeAnimation(forKey: "opacity")
+		remoteCursor.usernameLabel.layer.add(animation, forKey: "opacity")
 	}
 
 	private func updateEnabled() {
-		backgroundView.hidden = !enabled
-		foregroundView.hidden = !enabled
+		backgroundView.isHidden = !enabled
+		foregroundView.isHidden = !enabled
 		updateLayout()
 	}
 }

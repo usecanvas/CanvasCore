@@ -13,32 +13,32 @@ public final class AvatarsController {
 
 	// MARK: - Types
 
-	public typealias Completion = (id: String, image: Image?) -> Void
+	public typealias Completion = (_ id: String, _ image: Image?) -> Void
 
 
 	// MARK: - Properties
 
 	public static let sharedController = AvatarsController()
 
-	public let session: NSURLSession
+	public let session: URLSession
 
-	private var downloading = [String: [Completion]]()
-	private let queue = dispatch_queue_create("com.usecanvas.canvas.avatarscontroller", DISPATCH_QUEUE_SERIAL)
-	private let memoryCache = MemoryCache<Image>()
-	private let imageCache: MultiCache<Image>
-	private let placeholderCache = MemoryCache<Image>()
+	fileprivate var downloading = [String: [Completion]]()
+	fileprivate let queue = DispatchQueue(label: "com.usecanvas.canvas.avatarscontroller")
+	fileprivate let memoryCache = MemoryCache<Image>()
+	fileprivate let imageCache: MultiCache<Image>
+	fileprivate let placeholderCache = MemoryCache<Image>()
 
 
 	// MARK: - Initializers
 
-	public init(session: NSURLSession = NSURLSession.sharedSession()) {
+	public init(session: URLSession = URLSession.shared) {
 		self.session = session
 
 		var caches = [AnyCache(memoryCache)]
 
 		// Setup disk cache
-		if let cachesDirectory = NSSearchPathForDirectoriesInDomains(.CachesDirectory, .UserDomainMask, true).first {
-			let directory = (cachesDirectory as NSString).stringByAppendingPathComponent("CanvasAvatars") as String
+		if let cachesDirectory = NSSearchPathForDirectoriesInDomains(.cachesDirectory, .userDomainMask, true).first {
+			let directory = (cachesDirectory as NSString).appendingPathComponent("CanvasAvatars") as String
 
 			if let diskCache = DiskCache<Image>(directory: directory) {
 				caches.append(AnyCache(diskCache))
@@ -51,20 +51,20 @@ public final class AvatarsController {
 
 	// MARK: - Accessing
 
-	public func fetchImage(id id: String, url: NSURL, completion: Completion) -> Image? {
+	public func fetchImage(id: String, url: URL, completion: Completion) -> Image? {
 		if let image = memoryCache[id] {
 			return image
 		}
 
 		imageCache.get(key: id) { [weak self] image in
 			if let image = image {
-				dispatch_async(dispatch_get_main_queue()) {
-					completion(id: id, image: image)
+				DispatchQueue.main.async {
+					completion(id, image)
 				}
 				return
 			}
 
-			self?.coordinate { [weak self] in
+			self?.queue.sync { [weak self] in
 				// Already downloading
 				if var array = self?.downloading[id] {
 					array.append(completion)
@@ -75,8 +75,8 @@ public final class AvatarsController {
 				// Start download
 				self?.downloading[id] = [completion]
 
-				let request = NSURLRequest(URL: url)
-				self?.session.downloadTaskWithRequest(request) { [weak self] location, _, _ in
+				let request = URLRequest(url: url)
+				self?.session.downloadTask(with: request) { [weak self] location, _, _ in
 					self?.loadImage(location: location, id: id)
 				}.resume()
 			}
@@ -88,23 +88,19 @@ public final class AvatarsController {
 
 	// MARK: - Private
 
-	private func coordinate(block: dispatch_block_t) {
-		dispatch_sync(queue, block)
-	}
-
-	private func loadImage(location location: NSURL?, id: String) {
-		let data = location.flatMap { NSData(contentsOfURL: $0) }
-		let image = data.flatMap { Image(data: $0) }
+	fileprivate func loadImage(location: URL?, id: String) {
+		let data = location.flatMap { try? Data(contentsOf: $0) }
+		let image = data.flatMap { Image(data: $0 as Data) }
 
 		if let image = image {
 			imageCache.set(key: id, value: image)
 		}
 
-		coordinate { [weak self] in
-			if let image = image, completions = self?.downloading[id] {
+		queue.sync { [weak self] in
+			if let image = image, let completions = self?.downloading[id] {
 				for completion in completions {
-					dispatch_async(dispatch_get_main_queue()) {
-						completion(id: id, image: image)
+					DispatchQueue.main.async {
+						completion(id, image)
 					}
 				}
 			}

@@ -15,6 +15,6 @@ public extension Organization {
 	}
 
 	public var displayName: String {
-		return isPersonalNotes ? LocalizedString.PersonalNotes.string : name
+		return isPersonalNotes ? LocalizedString.personalNotes.string : name
 	}
 }

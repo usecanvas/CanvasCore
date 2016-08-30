@@ -52,15 +52,15 @@ public struct Font {
 		}
 	}
 
-	public static func sansSerif(weight weight: Weight = .regular, style: Style = .regular, size: Size = .body) -> X.Font! {
+	public static func sansSerif(weight: Weight = .regular, style: Style = .regular, size: Size = .body) -> X.Font! {
 		// TODO: Italic isn't supported on macOS yet
 		#if !os(OSX)
 			if style == .italic {
 				// TODO: Weight is currently ignored for italic
-				return X.Font.italicSystemFontOfSize(size.pointSize)
+				return X.Font.italicSystemFont(ofSize: size.pointSize)
 			}
 		#endif
 
-		return X.Font.systemFontOfSize(size.pointSize, weight: weight.weight)
+		return X.Font.systemFont(ofSize: size.pointSize, weight: weight.weight)
 	}
 }
